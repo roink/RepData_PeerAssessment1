@@ -8,18 +8,123 @@ output:
 
 ## Loading and preprocessing the data
 
+```{r}
+data <- read.csv(unzip("activity.zip"))
+  
+
+```
+
 
 
 ## What is mean total number of steps taken per day?
+```{r}
+daily_steps <- tapply(data$steps,data$date,sum,na.rm=TRUE)
+```
 
+Histogram of daily steps:
+```{r}
+hist(daily_steps,n=20)
+```
+
+Mean daily steps:
+```{r}
+mean(daily_steps)
+```
+Median daily steps:
+```{r}
+median(daily_steps)
+```
 
 
 ## What is the average daily activity pattern?
+Average each interval
+```{r}
+daily_activity <- tapply(data$steps,data$interval,mean,na.rm=T)
+```
 
+
+Plot histogram
+```{r}
+plot(daily_activity,type="l",ylab = "Steps",xlab = "Interval")
+```
+
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r}
+names(daily_activity)[ which(daily_activity ==  max(daily_activity)) ]
+```
 
 
 ## Imputing missing values
+How many rows have at least one missing Value?
 
+```{r}
+sum(!complete.cases(data))
+```
+
+All missing values are in the steps column, as can be seen from
+```{r}
+summary(data)
+```
+
+Replace missing values by sampling randomly from the same intervals with non missing values
+
+```{r}
+data2 <- data
+set.seed(20)
+
+for (i in seq(nrow(data))){
+  if (is.na(data2[i,1])){
+    data2[i,1] <- sample(data[data$interval==data[i,3] & !is.na(data$steps),1],1)
+  }
+}
+```
+
+How did filling the NAs change our statistics?
+
+```{r}
+daily_steps <- tapply(data2$steps,data2$date,sum,na.rm=T)
+```
+
+Histogram of daily steps:
+```{r}
+hist(daily_steps,n=20)
+```
+
+Mean daily steps:
+```{r}
+mean(daily_steps)
+```
+Median daily steps:
+```{r}
+median(daily_steps)
+```
+
+These values increased.
+Days with missing values where earlier interpreted as having zero steps. This reduces mean and median.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+library(lubridate)
+data2$wdays <- as.factor(sapply(wday(ymd(as.character(data2$date))),function(x) if (x==1 | x==7){"weekend"}else{"weekday"}))
+daily_activity <- data.frame(tapply(data2$steps,list(data2$interval,data2$wday),sum,na.rm=T))
+
+daily_activity$interval <- rownames(daily_activity)
+
+library(tidyr)
+
+daily_activity <- gather(daily_activity,key="wdays",value = "Steps",-interval)
+
+
+library(ggplot2)
+
+daily_activity$interval <- as.numeric(daily_activity$interval)
+
+qplot(interval,Steps,data=daily_activity,facets = wdays~.,geom ="line")
+
+
+```
+
+
+
